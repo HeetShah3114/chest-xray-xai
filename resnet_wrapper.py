@@ -1,13 +1,16 @@
 #!/usr/bin/env python
 """
-compare_resnet.py
+resnet_wrapper.py
 
-Defines three variants of ResNet152 using the compare.py ResNet implementation:
-    - ResNet152 base
-    - ResNet152 with ImageNet pretrained weights
-    - ResNet152 attention-augmented using CheXpert hyperparameters
+This module defines three variants of ResNet152 using a custom ResNet implementation.
+The variants include:
+  - ResNet152 base: a randomly initialized ResNet152 with the Bottleneck block.
+  - ResNet152 ImageNet: ResNet152 loaded with pretrained ImageNet weights, then adapted
+      by replacing the final fully connected layer.
+  - ResNet152 attention: an attention-augmented ResNet152 with hyperparameters inspired by
+      the CheXpert paper (using 320x320 as the input image size).
 
-Each model outputs a number of classes (default 5 for CheXpert) and can be imported in training scripts.
+A sample run is provided in the main() function to quickly instantiate and test each variant.
 """
 
 import torch
@@ -15,32 +18,52 @@ from resnet import ResNet, Bottleneck, BasicBlock
 
 def resnet152_base(num_classes=5):
     """
-    Returns a ResNet152 base model (randomly initialized).
-    ResNet152 uses the Bottleneck block with layer configuration [3, 8, 36, 3].
+    Constructs a base ResNet152 model with random initialization.
+
+    Parameters:
+        num_classes (int): Number of output classes (default is 5).
+
+    Returns:
+        model (ResNet): An instance of ResNet152.
     """
     model = ResNet(Bottleneck, [3, 8, 36, 3], num_classes=num_classes)
     return model
 
 def resnet152_imagenet(num_classes=5):
     """
-    Returns a ResNet152 model with ImageNet pretrained weights.
-    The pretrained weights are loaded from torchvision.
-    Note: We use strict=False to adapt the final fully connected layer.
+    Constructs a ResNet152 model with ImageNet pretrained weights.
+
+    The model is first instantiated with 1000 classes to match the pretrained weights.
+    Then the final fully connected layer is replaced to output the desired number of classes.
+
+    Parameters:
+        num_classes (int): Number of output classes (default is 5).
+
+    Returns:
+        model (ResNet): A ResNet152 model adapted for the given number of classes.
     """
-    model = ResNet(Bottleneck, [3, 8, 36, 3], num_classes=num_classes)
+    # Instantiate with 1000 classes for compatibility with pretrained weights.
+    model = ResNet(Bottleneck, [3, 8, 36, 3], num_classes=1000)
     state_dict = torch.hub.load_state_dict_from_url(
         "https://download.pytorch.org/models/resnet152-b121ed2d.pth", progress=True
     )
-    model.load_state_dict(state_dict, strict=False)
-    # Replace the final fully connected layer to match the desired number of output classes
+    model.load_state_dict(state_dict)
+    # Replace the final fully connected layer.
     model.fc = torch.nn.Linear(model.fc.in_features, num_classes)
     return model
 
 def resnet152_attention(num_classes=5):
     """
-    Returns an attention-augmented ResNet152.
-    The attention augmentation hyperparameters are chosen based on the CheXpert paper,
+    Constructs an attention-augmented ResNet152.
+
+    The attention hyperparameters are set based on guidelines from the CheXpert paper,
     here using an example configuration with input dimensions of 320x320.
+
+    Parameters:
+        num_classes (int): Number of output classes (default is 5).
+
+    Returns:
+        model (ResNet): An attention-augmented ResNet152.
     """
     attn_params = {
         'k': 0.2,
@@ -52,9 +75,20 @@ def resnet152_attention(num_classes=5):
     model = ResNet(Bottleneck, [3, 8, 36, 3], num_classes=num_classes, attn_params=attn_params)
     return model
 
-if __name__ == '__main__':
-    # Quick instantiation test for all ResNet152 variants
-    for name, creator in zip(["base", "imagenet", "attention"],
-                             [resnet152_base, resnet152_imagenet, resnet152_attention]):
+def main():
+    """
+    Demonstrates a sample run by instantiating each ResNet152 variant and printing the
+    total number of parameters.
+    """
+    creators = {
+        "base": resnet152_base,
+        "imagenet": resnet152_imagenet,
+        "attention": resnet152_attention
+    }
+    for name, creator in creators.items():
         model = creator(num_classes=5)
-        print(f"ResNet152 {name} model instantiated with {sum(p.numel() for p in model.parameters())} parameters.")
+        total_params = sum(p.numel() for p in model.parameters())
+        print(f"ResNet152 {name} model instantiated with {total_params} parameters.")
+
+if __name__ == '__main__':
+    main()
