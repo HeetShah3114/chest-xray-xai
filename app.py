@@ -21,10 +21,8 @@ default_device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 checkpoint_paths = {
     ("densenet", "base"): "checkpoints/densenet_base_best.pth",
     ("densenet", "imagenet"): "checkpoints/densenet_imagenet_best.pth",
-    ("densenet", "attention"): "checkpoints/densenet_attention.pth",
     ("resnet", "base"): "checkpoints/resnet_base_best.pth",
     ("resnet", "imagenet"): "checkpoints/resnet_imagenet-freeze_best.pth",
-    ("resnet", "attention"): "checkpoints/resnet_attention.pth",
     ("transformer", "vit"): "checkpoints/vit_base_patch16_224_best_auc.pth",
     ("transformer", "swin"): "checkpoints/vit_swin_tiny_patch4_window7_224_best.pth"
 }
