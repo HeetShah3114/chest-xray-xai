@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Disease Prediction - Form</title>
+  <style>
+    /* Basic reset and styling */
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: #f0f2f5;
+      color: #333;
+      padding: 20px;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+    }
+    .container {
+      background: #fff;
+      padding: 30px;
+      border-radius: 8px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+      width: 100%;
+      max-width: 600px;
+    }
+    h1 { text-align: center; margin-bottom: 20px; color: #0056b3; }
+    label { display: block; margin: 10px 0 5px; font-weight: bold; }
+    select, input[type="file"], button {
+      width: 100%;
+      padding: 10px;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+      font-size: 1rem;
+      margin-bottom: 15px;
+      transition: border 0.3s ease;
+    }
+    select:focus, input[type="file"]:focus, button:focus {
+      border-color: #0056b3;
+      outline: none;
+    }
+    button {
+      background: #0056b3;
+      color: #fff;
+      border: none;
+      cursor: pointer;
+      transition: background 0.3s ease;
+    }
+    button:hover { background: #004494; }
+    #loadingMessage { display: none; text-align: center; font-style: italic; color: #0056b3; }
+    /* Responsive grid for larger screens */
+    @media (min-width: 768px) {
+      form { display: grid; grid-template-columns: 1fr 1fr; grid-gap: 20px; }
+      form label, form input, form select, form button, #loadingMessage {
+        grid-column: span 2;
+      }
+      #secondaryDropdown, #modelNameDiv { grid-column: span 2; }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>Disease Prediction</h1>
+    <form id="predictForm" enctype="multipart/form-data">
+      <!-- GradCAM Checkbox -->
+      <label>
+        <input type="checkbox" id="gradcamCheckbox" name="gradcam" /> Enable GradCAM
+      </label>
+
+      <label for="baseModel">Base Model:</label>
+      <select id="baseModel" name="model_type"></select>
+
+      <div id="secondaryDropdown">
+        <label for="variantSelect">Variant:</label>
+        <select id="variantSelect" name="model_variant"></select>
+      </div>
+
+      <div id="modelNameDiv" style="display: none;">
+        <label for="modelName">Transformer Variant:</label>
+        <select id="modelName" name="model_variant"></select>
+      </div>
+
+      <label for="image">Upload Image:</label>
+      <input type="file" id="image" name="image" accept="image/*" required />
+
+      <button type="submit">Predict</button>
+      <div id="loadingMessage">Predicting... Please wait.</div>
+    </form>
+  </div>
+
+  <script>
+    document.addEventListener('DOMContentLoaded', function() {
+      const gradcamCheckbox = document.getElementById('gradcamCheckbox');
+      const baseModelSelect = document.getElementById('baseModel');
+      const secondaryDropdown = document.getElementById('secondaryDropdown');
+      const variantSelect = document.getElementById('variantSelect');
+      const modelNameDiv = document.getElementById('modelNameDiv');
+      const modelNameSelect = document.getElementById('modelName');
+      const predictButton = document.querySelector('button[type="submit"]');
+      const loadingMessage = document.getElementById('loadingMessage');
+
+      // Update base model options based on GradCAM checkbox.
+      function updateBaseModelOptions() {
+        baseModelSelect.innerHTML = '';
+        let options;
+        if (gradcamCheckbox.checked) {
+          // GradCAM supports only DenseNet and ResNet.
+          options = [
+            { value: 'densenet', text: 'DenseNet' },
+            { value: 'resnet', text: 'ResNet' }
+          ];
+        } else {
+          options = [
+            { value: 'densenet', text: 'DenseNet' },
+            { value: 'resnet', text: 'ResNet' },
+            { value: 'transformer', text: 'Transformer' }
+          ];
+        }
+        options.forEach(function(opt) {
+          const optionElem = document.createElement('option');
+          optionElem.value = opt.value;
+          optionElem.text = opt.text;
+          baseModelSelect.appendChild(optionElem);
+        });
+        updateSecondary();
+      }
+
+      function updateSecondary() {
+        const selected = baseModelSelect.value;
+        variantSelect.innerHTML = ''; // Clear previous options
+        modelNameSelect.innerHTML = ''; // Clear transformer options
+        if (selected === 'densenet' || selected === 'resnet') {
+          secondaryDropdown.style.display = 'block';
+          modelNameDiv.style.display = 'none';
+          const options = [
+            { value: 'base', text: 'Base' },
+            { value: 'imagenet', text: 'ImageNet' }
+          ];
+          options.forEach(function(opt) {
+            const optionElem = document.createElement('option');
+            optionElem.value = opt.value;
+            optionElem.text = opt.text;
+            variantSelect.appendChild(optionElem);
+          });
+        } else if (selected === 'transformer') {
+          secondaryDropdown.style.display = 'none';
+          modelNameDiv.style.display = 'block';
+          const options = [
+            { value: 'vit', text: 'ViT' },
+            { value: 'swin', text: 'SWIN' }
+          ];
+          options.forEach(function(opt) {
+            const optionElem = document.createElement('option');
+            optionElem.value = opt.value;
+            optionElem.text = opt.text;
+            modelNameSelect.appendChild(optionElem);
+          });
+        }
+      }
+
+      // Listen for changes on the GradCAM checkbox.
+      gradcamCheckbox.addEventListener('change', updateBaseModelOptions);
+      baseModelSelect.addEventListener('change', updateSecondary);
+      updateBaseModelOptions();
+
+      document.getElementById('predictForm').addEventListener('submit', function(e) {
+        e.preventDefault();
+        predictButton.disabled = true;
+        loadingMessage.style.display = 'block';
+
+        // Prepare form data.
+        const formData = new FormData();
+        const modelType = baseModelSelect.value;
+        formData.append('model_type', modelType);
+
+        let modelVariant;
+        if (modelType === 'densenet' || modelType === 'resnet') {
+          modelVariant = variantSelect.value;
+          formData.append('model_variant', modelVariant);
+        } else if (modelType === 'transformer') {
+          modelVariant = modelNameSelect.value;
+          formData.append('model_variant', modelVariant);
+        }
+
+        // Include the model settings so they can be displayed on the results page.
+        sessionStorage.setItem('modelInfo', JSON.stringify({
+          model_type: modelType,
+          model_variant: modelVariant,
+          gradcam: gradcamCheckbox.checked
+        }));
+
+        const imageFile = document.getElementById('image').files[0];
+        formData.append('image', imageFile);
+
+        // Choose the endpoint based on GradCAM checkbox.
+        const endpoint = gradcamCheckbox.checked ? '/gradcam' : '/predict';
+
+        fetch(endpoint, {
+          method: 'POST',
+          body: formData
+        })
+        .then(response => response.json())
+        .then(data => {
+          // Store the results in sessionStorage.
+          sessionStorage.setItem('predictionResult', JSON.stringify(data));
+          // Redirect to the results page.
+          window.location.href = "/results";
+        })
+        .catch(err => {
+          alert("Error: " + err);
+        })
+        .finally(() => {
+          predictButton.disabled = false;
+          loadingMessage.style.display = 'none';
+        });
+      });
+    });
+  </script>
+</body>
+</html>

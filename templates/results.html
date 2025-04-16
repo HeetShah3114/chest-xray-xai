@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Disease Prediction - Results</title>
+  <style>
+    /* Base styling */
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: #f0f2f5;
+      color: #333;
+      padding: 20px;
+    }
+    .container {
+      max-width: 900px;
+      margin: 0 auto;
+      background: #fff;
+      padding: 30px;
+      border-radius: 8px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    }
+    h1, h2, h3 { color: #0056b3; margin-bottom: 15px; }
+    .info { margin-bottom: 20px; }
+    .info p { margin: 5px 0; }
+    .predictions ul { list-style: none; padding-left: 0; }
+    .predictions li { padding: 5px 0; border-bottom: 1px solid #eee; }
+    .img-container {
+      display: flex;
+      flex-direction: row;
+      flex-wrap: nowrap;
+      justify-content: center;
+      align-items: center;
+      gap: 20px;
+      margin-top: 20px;
+    }
+    .img-container div {
+      text-align: center;
+    }
+    .img-container img {
+      max-width: 300px;
+      width: 100%;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+    }
+    .back-link {
+      margin-top: 20px;
+      display: inline-block;
+      color: #0056b3;
+      text-decoration: none;
+    }
+    .back-link:hover { text-decoration: underline; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>Prediction Results</h1>
+    <div id="modelInfo" class="info"></div>
+    <div id="resultDisplay"></div>
+    <a href="/" class="back-link">Back to Form</a>
+  </div>
+
+  <script>
+    document.addEventListener('DOMContentLoaded', function() {
+      // Retrieve stored model info and prediction results.
+      const modelInfo = JSON.parse(sessionStorage.getItem('modelInfo'));
+      const predictionResult = JSON.parse(sessionStorage.getItem('predictionResult'));
+
+      const modelInfoDiv = document.getElementById('modelInfo');
+      const resultDisplayDiv = document.getElementById('resultDisplay');
+
+      if(modelInfo) {
+        let infoHtml = `<h2>Model Information</h2>`;
+        infoHtml += `<p><strong>Base Model:</strong> ${modelInfo.model_type}</p>`;
+        infoHtml += `<p><strong>Variant:</strong> ${modelInfo.model_variant}</p>`;
+        infoHtml += `<p><strong>GradCAM Enabled:</strong> ${modelInfo.gradcam ? 'Yes' : 'No'}</p>`;
+        modelInfoDiv.innerHTML = infoHtml;
+      }
+
+      if(predictionResult) {
+        // If GradCAM is enabled, expect additional details.
+        if(modelInfo.gradcam) {
+          let html = `<h2>GradCAM Prediction Results:</h2>`;
+          html += `<p><strong>Target Class:</strong> ${predictionResult.target_class}</p>`;
+          html += `<h3>Probabilities:</h3><ul>`;
+          for (let key in predictionResult.probabilities) {
+            html += `<li>${key}: ${(predictionResult.probabilities[key] * 100).toFixed(2)}%</li>`;
+          }
+          html += `</ul>`;
+          html += `<div class="img-container">`;
+          html += `<div><p>Original Image</p><img src="data:image/png;base64,${predictionResult.original_image}" alt="Original Image"/></div>`;
+          html += `<div><p>GradCAM Heatmap</p><img src="data:image/png;base64,${predictionResult.gradcam_heatmap}" alt="GradCAM Heatmap"/></div>`;
+          html += `<div><p>Overlay</p><img src="data:image/png;base64,${predictionResult.gradcam_overlay}" alt="GradCAM Overlay"/></div>`;
+          html += `</div>`;
+          resultDisplayDiv.innerHTML = html;
+        } else {
+          // For non-GradCAM predictions.
+          let html = `<h2>Prediction Results:</h2>`;
+          html += `<div class="predictions"><ul>`;
+          for (let key in predictionResult) {
+            html += `<li>${key}: ${(predictionResult[key] * 100).toFixed(2)}%</li>`;
+          }
+          html += `</ul></div>`;
+          resultDisplayDiv.innerHTML = html;
+        }
+      } else {
+        resultDisplayDiv.innerHTML = `<p>No prediction results found.</p>`;
+      }
+    });
+  </script>
+</body>
+</html>
